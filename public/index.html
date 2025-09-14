@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Reserva Tanzania para Familias</title>
+<style>
+/* --- Estilos básicos --- */
+body { font-family: 'Segoe UI', Tahoma, sans-serif; background:#f5f5f5; margin:0; padding:0; }
+#calculadora-viaje, #bloque-pago { max-width:700px; margin:30px auto; padding:25px; background:#fff; border-radius:16px; box-shadow:0 6px 18px rgba(0,0,0,0.1); }
+#btnContratar { background-color:#ccc; color:white; border:none; padding:12px 25px; font-size:1em; cursor:not-allowed; border-radius:8px; transition: transform 0.3s ease, box-shadow 0.3s ease; }
+#btnContratar.enabled { background-color:#f78da7; cursor:pointer; }
+#notaImporte { color:#f78da7; font-weight:600; font-size:18px; margin-bottom:20px; text-align:center; }
+input, select { width:100%; padding:10px; margin-bottom:15px; border-radius:6px; border:1px solid #ccc; font-size:1em; }
+button { cursor:pointer; }
+</style>
+</head>
+<body>
+
+<!-- BLOQUE CALCULADORA -->
+<div id="calculadora-viaje">
+  <h2>Calcula tu presupuesto</h2>
+  <label for="numPersonas">Número de personas:</label>
+  <input type="number" id="numPersonas" min="1" placeholder="Ej: 3" required />
+  
+  <div id="fechasNacimientoContainer"></div>
+
+  <label for="fechaViaje">Fecha de inicio del viaje:</label>
+  <input type="date" id="fechaViaje" required />
+
+  <label for="email">Correo electrónico:</label>
+  <input type="email" id="email" placeholder="Tu email" required />
+
+  <label>
+    <input type="checkbox" id="noRobot" required /> No soy un robot
+  </label>
+
+  <button type="button" onclick="calcularPresupuesto()">Calcular Presupuesto</button>
+  <input type="text" id="resultadoTotal" readonly placeholder="Total €" />
+</div>
+
+<!-- BLOQUE PAGO -->
+<div id="bloque-pago">
+  <div id="notaImporte">Calcula primero tu presupuesto para ver el importe a pagar.</div>
+  <button id="btnContratar" disabled>Quiero Reservar</button>
+</div>
+
+<script src="https://js.stripe.com/v3/"></script>
+<script>
+// --- Inputs dinámicos por número de personas ---
+const numPersonasInput = document.getElementById('numPersonas');
+const containerFechas = document.getElementById('fechasNacimientoContainer');
+
+numPersonasInput.addEventListener('input', () => {
+  containerFechas.innerHTML = "";
+  const count = parseInt(numPersonasInput.value);
+  if (isNaN(count) || count < 1) return;
+  for (let i = 1; i <= count; i++) {
+    const label = document.createElement('label');
+    label.textContent = `Fecha de nacimiento persona ${i}:`;
+    const input = document.createElement('input');
+    input.type = 'date';
+    input.className = 'fechaNacimiento';
+    input.required = true;
+    containerFechas.appendChild(label);
+    containerFechas.appendChild(input);
+  }
+});
+
+// --- Calculadora ---
+function calcularPresupuesto() {
+  const numPersonas = parseInt(numPersonasInput.value);
+  const fechaViaje = document.getElementById('fechaViaje').value;
+  const email = document.getElementById('email').value.trim();
+  const checkRobot = document.getElementById('noRobot').checked;
+  const inputsFechas = document.querySelectorAll('.fechaNacimiento');
+
+  if (!numPersonas || !fechaViaje || !email || !checkRobot || inputsFechas.length !== numPersonas) {
+    alert("Completa todos los campos correctamente.");
+    return;
+  }
+
+  let total = 0;
+  inputsFechas.forEach(() => { total += 1000; }); // Precio fijo 1000€/persona
+  document.getElementById('resultadoTotal').value = total.toLocaleString('es-ES') + ' €';
+}
+
+// --- Activar botón ---
+const btn = document.getElementById('btnContratar');
+const notaImporte = document.getElementById('notaImporte');
+
+function actualizarNota() {
+  const resultadoInput = document.getElementById('resultadoTotal');
+  if (resultadoInput && resultadoInput.value) {
+    notaImporte.textContent = "Consulta de Presupuesto: " + resultadoInput.value;
+    btn.disabled = false;
+    btn.classList.add('enabled');
+  } else {
+    notaImporte.textContent = "Calcula primero tu presupuesto para ver el importe a pagar.";
+    btn.disabled = true;
+    btn.classList.remove('enabled');
+  }
+}
+setInterval(actualizarNota, 300);
+
+// --- Stripe Checkout ---
+btn.addEventListener('click', async () => {
+  const resultadoInput = document.getElementById('resultadoTotal');
+  const emailInput = document.getElementById('email');
+  const fechaViajeInput = document.getElementById('fechaViaje');
+  const numPersonasInput = document.getElementById('numPersonas');
+
+  if (!resultadoInput || !resultadoInput.value) {
+    alert("Por favor calcula primero el presupuesto.");
+    return;
+  }
+
+  const amount = parseFloat(resultadoInput.value.replace(/[^0-9,.]/g, "").replace(",", "."));
+  const email = emailInput.value;
+  const fechaViaje = fechaViajeInput.value;
+  const numPersonas = parseInt(numPersonasInput.value);
+
+  try {
+    // --- Llamada al endpoint /crear-sesion ---
+    const res = await fetch("/crear-sesion", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cantidad: amount, email, fechaViaje, numPersonas })
+    });
+
+    const data = await res.json();
+    if (!data.id) throw new Error("No se pudo crear la sesión.");
+
+    const stripe = Stripe("pk_live_51LzOJEFMJHhGk44K4EB5xM39Ac6xEEmMfoa1F7INe6czKS2HwpUHa5TQtng0n4Z7aHrvScZFFlkKVyhthJRawOMx00iJZREEQ9");
+    await stripe.redirectToCheckout({ sessionId: data.id });
+
+  } catch(err) {
+    console.error(err);
+    alert("Error al iniciar el pago. Revisa que tu servidor esté corriendo y la clave secreta esté en .env");
+  }
+});
+</script>
+</body>
+</html>
