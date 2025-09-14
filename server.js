@@ -2,12 +2,15 @@
 require('dotenv').config();
 const express = require('express');
 const Stripe = require('stripe');
+const cors = require('cors');          // ✅ importamos CORS
 const path = require('path');
 
 const app = express();
+console.log("Stripe Secret Key OK?", process.env.STRIPE_SECRET_KEY ? "✅" : "❌");
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
-// Permite recibir JSON en POST
+// --- Middlewares ---
+app.use(cors());                       // ✅ habilita CORS para peticiones desde cualquier origen
 app.use(express.json());
 
 // Servir archivos estáticos desde la carpeta 'public'
@@ -16,6 +19,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Endpoint para crear sesión de Stripe
 app.post('/crear-sesion', async (req, res) => {
   try {
+    console.log("POST /crear-sesion recibido con body:", req.body);  // ✅ log de debug
+
     const { cantidad, email, fechaViaje, numPersonas } = req.body;
 
     // Validación básica
@@ -42,6 +47,7 @@ app.post('/crear-sesion', async (req, res) => {
       cancel_url: `${req.headers.origin}/cancelado.html`,
     });
 
+    console.log("Sesión de Stripe creada con ID:", session.id);  // ✅ log de debug
     res.json({ id: session.id });
   } catch (err) {
     console.error('Error al crear sesión:', err);

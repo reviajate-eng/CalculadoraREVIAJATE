@@ -108,7 +108,7 @@ btn.addEventListener('click', async () => {
   const resultadoInput = document.getElementById('resultadoTotal');
   const emailInput = document.getElementById('email');
   const fechaViajeInput = document.getElementById('fechaViaje');
-  const numPersonasInput = document.getElementById('numPersonas');
+  const numPersonasInputElem = document.getElementById('numPersonas');
 
   if (!resultadoInput || !resultadoInput.value) {
     alert("Por favor calcula primero el presupuesto.");
@@ -118,11 +118,10 @@ btn.addEventListener('click', async () => {
   const amount = parseFloat(resultadoInput.value.replace(/[^0-9,.]/g, "").replace(",", "."));
   const email = emailInput.value;
   const fechaViaje = fechaViajeInput.value;
-  const numPersonas = parseInt(numPersonasInput.value);
+  const numPersonas = parseInt(numPersonasInputElem.value);
 
   try {
-    // --- Llamada al endpoint /crear-sesion ---
-    const res = await fetch("/crear-sesion", {
+    const res = await fetch("https://calculadorareviajate.onrender.com/crear-sesion", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ cantidad: amount, email, fechaViaje, numPersonas })
@@ -142,3 +141,4 @@ btn.addEventListener('click', async () => {
 </script>
 </body>
 </html>
+
