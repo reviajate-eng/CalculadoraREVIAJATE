@@ -1,28 +1,27 @@
 const express = require('express');
 const Stripe = require('stripe');
-const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
-// Configurar CORS para tu dominio exacto
-app.use(cors({
-  origin: 'https://reviajate.com', // TU DOMINIO EXACTO
-  methods: ['GET', 'POST', 'OPTIONS'], // <-- AÑADIDO OPTIONS
-  allowedHeaders: ['Content-Type']
-}));
+// Middleware CORS manual para asegurarnos que OPTIONS funciona
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'https://reviajate.com');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
-// Permitir JSON en POST
 app.use(express.json());
 
-// Endpoint para crear sesión de Stripe
 app.post('/crear-sesion', async (req, res) => {
   const { cantidad } = req.body;
-
-  if (!cantidad || isNaN(cantidad)) {
-    return res.status(400).json({ error: "Cantidad inválida" });
-  }
+  if (!cantidad || isNaN(cantidad)) return res.status(400).json({ error: "Cantidad inválida" });
 
   try {
     const session = await stripe.checkout.sessions.create({
