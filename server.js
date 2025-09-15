@@ -9,12 +9,14 @@ const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 // Configurar CORS para tu dominio exacto
 app.use(cors({
   origin: 'https://reviajate.com', // TU DOMINIO EXACTO
-  methods: ['GET', 'POST'],
+  methods: ['GET', 'POST', 'OPTIONS'], // <-- AÑADIDO OPTIONS
   allowedHeaders: ['Content-Type']
 }));
 
+// Permitir JSON en POST
 app.use(express.json());
 
+// Endpoint para crear sesión de Stripe
 app.post('/crear-sesion', async (req, res) => {
   const { cantidad } = req.body;
 
@@ -41,7 +43,7 @@ app.post('/crear-sesion', async (req, res) => {
     res.json({ id: session.id });
 
   } catch (err) {
-    console.error(err);
+    console.error('Error al crear sesión:', err);
     res.status(500).json({ error: err.message });
   }
 });
