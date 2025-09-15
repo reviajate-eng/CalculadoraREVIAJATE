@@ -2,42 +2,41 @@
 require('dotenv').config();
 const express = require('express');
 const Stripe = require('stripe');
-const cors = require('cors');          // ✅ importamos CORS
+const cors = require('cors');
 const path = require('path');
 
 const app = express();
-console.log("Stripe Secret Key OK?", process.env.STRIPE_SECRET_KEY ? "✅" : "❌");
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
-// --- Middlewares ---
-app.use(cors());                       // ✅ habilita CORS para peticiones desde cualquier origen
+// Configurar CORS para tu web
+const corsOptions = {
+  origin: 'https://reviajate.com', // tu dominio
+  methods: ['GET','POST'],
+  allowedHeaders: ['Content-Type']
+};
+app.use(cors(corsOptions));
+
+// Permitir JSON en POST
 app.use(express.json());
 
-// Servir archivos estáticos desde la carpeta 'public'
+// Servir archivos estáticos desde /public
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Endpoint para crear sesión de Stripe
 app.post('/crear-sesion', async (req, res) => {
   try {
-    console.log("POST /crear-sesion recibido con body:", req.body);  // ✅ log de debug
+    const { cantidad } = req.body;
 
-    const { cantidad, email, fechaViaje, numPersonas } = req.body;
-
-    // Validación básica
     if (!cantidad || isNaN(cantidad)) {
       return res.status(400).json({ error: "Cantidad inválida" });
     }
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
-      customer_email: email,
       line_items: [{
         price_data: {
           currency: 'eur',
-          product_data: {
-            name: 'Tanzania para Familias',
-            description: `Fecha: ${fechaViaje} | Personas: ${numPersonas}`,
-          },
+          product_data: { name: 'Tanzania para Familias' },
           unit_amount: Math.round(cantidad * 100), // Stripe usa céntimos
         },
         quantity: 1,
@@ -47,7 +46,6 @@ app.post('/crear-sesion', async (req, res) => {
       cancel_url: `${req.headers.origin}/cancelado.html`,
     });
 
-    console.log("Sesión de Stripe creada con ID:", session.id);  // ✅ log de debug
     res.json({ id: session.id });
   } catch (err) {
     console.error('Error al crear sesión:', err);
@@ -55,6 +53,6 @@ app.post('/crear-sesion', async (req, res) => {
   }
 });
 
-// Puerto que Render asigna automáticamente
+// Puerto
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));

@@ -9,7 +9,13 @@
   "scripts": {
     "start": "node server.js"
   },
-  "keywords": ["tanzania", "viaje", "familias", "stripe", "calculadora"],
+  "keywords": [
+    "tanzania",
+    "viaje",
+    "familias",
+    "stripe",
+    "calculadora"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
