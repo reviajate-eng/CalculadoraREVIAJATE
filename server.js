@@ -8,15 +8,15 @@ const path = require('path');
 const app = express();
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
-// Configurar CORS para tu web
+// Configurar CORS para tu web específica
 const corsOptions = {
-  origin: 'https://reviajate.com', // tu dominio
-  methods: ['GET','POST'],
+  origin: 'https://reviajate.com', // o tu dominio completo si quieres
+  methods: ['GET', 'POST'],
   allowedHeaders: ['Content-Type']
 };
 app.use(cors(corsOptions));
 
-// Permitir JSON en POST
+// Permitir recibir JSON en POST
 app.use(express.json());
 
 // Servir archivos estáticos desde /public
@@ -25,18 +25,23 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Endpoint para crear sesión de Stripe
 app.post('/crear-sesion', async (req, res) => {
   try {
-    const { cantidad } = req.body;
+    const { cantidad, email, fechaViaje, numPersonas } = req.body;
 
+    // Validación básica
     if (!cantidad || isNaN(cantidad)) {
       return res.status(400).json({ error: "Cantidad inválida" });
     }
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
+      customer_email: email,
       line_items: [{
         price_data: {
           currency: 'eur',
-          product_data: { name: 'Tanzania para Familias' },
+          product_data: {
+            name: 'Tanzania para Familias',
+            description: `Fecha: ${fechaViaje} | Personas: ${numPersonas}`,
+          },
           unit_amount: Math.round(cantidad * 100), // Stripe usa céntimos
         },
         quantity: 1,
@@ -47,12 +52,13 @@ app.post('/crear-sesion', async (req, res) => {
     });
 
     res.json({ id: session.id });
+
   } catch (err) {
     console.error('Error al crear sesión:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// Puerto
+// Puerto que Render asigna automáticamente
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
